@@ -94,7 +94,54 @@
 
     function localRequire(x) {
       var res = localRequire.resolve(x);
-      return res === false ? {} : newRequire(res);
+      if (res === false) {
+        return {};
+      }
+      // Synthesize a module to follow re-exports.
+      if (Array.isArray(res)) {
+        var m = {__esModule: true};
+        res.forEach(function (v) {
+          var key = v[0];
+          var id = v[1];
+          var exp = v[2] || v[0];
+          var x = newRequire(id);
+          if (key === '*') {
+            Object.keys(x).forEach(function (key) {
+              if (
+                key === 'default' ||
+                key === '__esModule' ||
+                Object.prototype.hasOwnProperty.call(m, key)
+              ) {
+                return;
+              }
+
+              Object.defineProperty(m, key, {
+                enumerable: true,
+                get: function () {
+                  return x[key];
+                },
+              });
+            });
+          } else if (exp === '*') {
+            Object.defineProperty(m, key, {
+              enumerable: true,
+              value: x,
+            });
+          } else {
+            Object.defineProperty(m, key, {
+              enumerable: true,
+              get: function () {
+                if (exp === 'default') {
+                  return x.__esModule ? x.default : x;
+                }
+                return x[exp];
+              },
+            });
+          }
+        });
+        return m;
+      }
+      return newRequire(res);
     }
 
     function resolve(x) {
@@ -12409,7 +12456,7 @@ var createBigNumberClass = /* #__PURE__ */ (0, _factoryJs.factory)(name, depende
     if (typeof define == 'function' && define.amd) define(function() {
         return Decimal;
     });
-    else if (0, module.exports) {
+    else if (module.exports) {
         if (typeof Symbol == 'function' && typeof Symbol.iterator == 'symbol') {
             P[Symbol['for']('nodejs.util.inspect.custom')] = P.toString;
             P[Symbol.toStringTag] = 'Decimal';
@@ -62248,7 +62295,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     // Nodejs and AMD support: export the implementation as a module using
     // either convention.
     //
-    if (0, module.exports) {
+    if (module.exports) {
         module.exports = seedrandom;
         // When in node.js, try using crypto package for autoseeding.
         try {
